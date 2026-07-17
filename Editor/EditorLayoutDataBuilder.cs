@@ -27,19 +27,21 @@ namespace MarkupAttributes.Editor
             out List<PropertyLayoutData> layoutData,
             out Dictionary<SerializedProperty, InlineEditorData> inlineEditors,
             out List<TargetObjectWrapper> targetsRequireUpdate,
-            out Dictionary<string, string> managedReferenceTypesCache)
+            out Dictionary<string, object> managedReferenceTypesCache,
+            out Dictionary<string, int> arraySizesCache)
         {
             var props = new List<SerializedProperty>();
             layoutData = new List<PropertyLayoutData>();
             inlineEditors = new Dictionary<SerializedProperty, InlineEditorData>();
             targetsRequireUpdate = new List<TargetObjectWrapper>();
-            managedReferenceTypesCache = new Dictionary<string, string>();
+            managedReferenceTypesCache = new Dictionary<string, object>();
+            arraySizesCache = new Dictionary<string, int>();
             Type targetType = serializedObject.targetObject.GetType();
 
             topLevelProps = MarkupEditorUtils.GetSerializedObjectProperties(serializedObject);
             GetLayoutDataForSiblings(null, topLevelProps, targetType, 
                 new TargetObjectWrapper(serializedObject.targetObject),
-                props, layoutData, inlineEditors, targetsRequireUpdate, managedReferenceTypesCache);
+                props, layoutData, inlineEditors, targetsRequireUpdate, managedReferenceTypesCache, arraySizesCache);
             allProps = props.ToArray();
         }
 
@@ -47,7 +49,7 @@ namespace MarkupAttributes.Editor
             SerializedProperty[] siblings, Type targetType, TargetObjectWrapper targetObjectWrapper,
             List<SerializedProperty> allProps, List<PropertyLayoutData> layoutData,
             Dictionary<SerializedProperty, InlineEditorData> inlineEditors, List<TargetObjectWrapper> targetObjectWrappers,
-            Dictionary<string, string> managedReferenceTypesCache)
+            Dictionary<string, object> managedReferenceTypesCache, Dictionary<string, int> arraySizesCache)
         {
             int scopesToClose = 0;
             for (int i = 0; i < siblings.Length; i++)
@@ -59,7 +61,15 @@ namespace MarkupAttributes.Editor
                     groups.Add(scopeGroup);
                 }
 
-                FieldInfo fieldInfo = targetType.GetField(sibling.name, MarkupEditorUtils.DefaultBindingFlags);
+                FieldInfo fieldInfo = null;
+                Type currentType = targetType;
+                while (currentType != null)
+                {
+                    fieldInfo = currentType.GetField(sibling.name, MarkupEditorUtils.DefaultBindingFlags);
+                    if (fieldInfo != null)
+                        break;
+                    currentType = currentType.BaseType;
+                }
 
                 PropertyLayoutData data = null;
                 if (fieldInfo != null)
@@ -107,11 +117,16 @@ namespace MarkupAttributes.Editor
 
                 if (sibling.propertyType == SerializedPropertyType.ManagedReference)
                 {
-                    managedReferenceTypesCache[sibling.propertyPath] = sibling.managedReferenceFullTypename;
+                    managedReferenceTypesCache[sibling.propertyPath] = sibling.managedReferenceValue;
+                }
+                if (sibling.isArray && sibling.propertyType == SerializedPropertyType.Generic)
+                {
+                    arraySizesCache[sibling.propertyPath] = sibling.arraySize;
                 }
 
                 // Nested properties
                 bool isManagedReference = sibling.propertyType == SerializedPropertyType.ManagedReference;
+                bool isArray = sibling.isArray && sibling.propertyType == SerializedPropertyType.Generic;
                 if ((sibling.propertyType == SerializedPropertyType.Generic || isManagedReference)
                     && fieldInfo != null)
                 {
@@ -127,6 +142,87 @@ namespace MarkupAttributes.Editor
                             subTargetType = subTarget.GetType();
                         }
                     }
+                    else if (isArray)
+                    {
+                        // Array/List elements flattening
+                        Type elementType = null;
+                        if (fieldInfo.FieldType.IsArray)
+                            elementType = fieldInfo.FieldType.GetElementType();
+                        else if (fieldInfo.FieldType.IsGenericType && fieldInfo.FieldType.GetGenericTypeDefinition() == typeof(List<>))
+                            elementType = fieldInfo.FieldType.GetGenericArguments()[0];
+
+                        if (elementType != null)
+                        {
+                            if (markedUp == null)
+                                markedUp = elementType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
+
+                            if (markedUp != null)
+                            {
+                                data.includeChildren = false;
+                                
+                                int size = sibling.arraySize;
+                                for (int indexInArray = 0; indexInArray < size; indexInArray++)
+                                {
+                                    var elementProp = sibling.GetArrayElementAtIndex(indexInArray);
+                                    
+                                    Type elementTargetType = elementType;
+                                    object elementTarget = null;
+                                    if (elementProp.propertyType == SerializedPropertyType.ManagedReference)
+                                    {
+                                        elementTarget = elementProp.managedReferenceValue;
+                                        if (elementTarget != null)
+                                            elementTargetType = elementTarget.GetType();
+                                    }
+                                    else
+                                    {
+                                        elementTarget = MarkupEditorUtils.GetTargetObjectOfProperty(elementProp);
+                                        if (elementTarget != null)
+                                            elementTargetType = elementTarget.GetType();
+                                    }
+
+                                    var elementData = new PropertyLayoutData(new List<InspectorLayoutGroup>(), new List<ConditionWrapper>(), new List<ConditionWrapper>(), null, fieldInfo);
+                                    elementData.isTopLevel = false;
+                                    elementData.includeChildren = true;
+
+                                    allProps.Add(elementProp);
+                                    layoutData.Add(elementData);
+
+                                    if (elementProp.propertyType == SerializedPropertyType.ManagedReference)
+                                    {
+                                        managedReferenceTypesCache[elementProp.propertyPath] = elementProp.managedReferenceValue;
+                                    }
+
+                                    var elementMarkedUp = elementType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
+                                    if (elementTarget != null)
+                                    {
+                                        var concreteMarkedUp = elementTargetType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
+                                        if (concreteMarkedUp != null)
+                                            elementMarkedUp = concreteMarkedUp;
+                                    }
+
+                                    if (elementMarkedUp != null && elementTarget != null)
+                                    {
+                                        var children = MarkupEditorUtils.GetChildrenOfProperty(elementProp).ToArray();
+                                        if (children != null && children.Length > 0)
+                                        {
+                                            elementData.includeChildren = false;
+                                            elementData.alwaysHide |= !elementMarkedUp.ShowControl;
+                                            var subScopeGroup = InspectorLayoutGroup.CreateScopeGroup(
+                                                "./" + elementProp.name, elementProp, elementTargetType.FullName, 
+                                                elementMarkedUp.ShowControl, elementMarkedUp.IndentChildren);
+                                            
+                                            var elementWrapper = new TargetObjectWrapper(elementTarget, elementProp);
+                                            scopesToClose += GetLayoutDataForSiblings(
+                                                subScopeGroup, children, elementTargetType, elementWrapper, 
+                                                allProps, layoutData, inlineEditors, targetObjectWrappers,
+                                                managedReferenceTypesCache, arraySizesCache);
+                                            scopesToClose += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     else
                     {
                         subTarget = MarkupEditorUtils.GetTargetObjectOfProperty(sibling);
@@ -136,10 +232,10 @@ namespace MarkupAttributes.Editor
                         }
                     }
 
-                    if (markedUp == null && subTargetType != null)
+                    if (!isArray && markedUp == null && subTargetType != null)
                         markedUp = subTargetType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
 
-                    if (markedUp != null && subTargetType != null)
+                    if (!isArray && markedUp != null && subTargetType != null)
                     {
                         var subTargetWrapper = new TargetObjectWrapper(subTarget, sibling);
                         if (subTargetType.IsValueType)
@@ -157,7 +253,7 @@ namespace MarkupAttributes.Editor
                                 scopesToClose += GetLayoutDataForSiblings(
                                     subScopeGroup, children, subTargetType, subTargetWrapper, 
                                     allProps, layoutData, inlineEditors, targetObjectWrappers,
-                                    managedReferenceTypesCache);
+                                    managedReferenceTypesCache, arraySizesCache);
                                 scopesToClose += 1;
                             }
                         }
