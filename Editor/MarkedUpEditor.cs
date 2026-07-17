@@ -16,6 +16,7 @@ namespace MarkupAttributes.Editor
         private CallbackManager callbackManager;
         private Dictionary<SerializedProperty, InlineEditorData> inlineEditors;
         private List<TargetObjectWrapper> targetsRequireUpdate;
+        private Dictionary<string, string> managedReferenceTypesCache;
 
         protected virtual void OnInitialize() { }
         protected virtual void OnCleanup() { }
@@ -41,59 +42,110 @@ namespace MarkupAttributes.Editor
 
         protected void InitializeMarkedUpEditor()
         {
-            EditorLayoutDataBuilder.BuildLayoutData(serializedObject, out allProps, 
-                out firstLevelProps, out layoutData, out inlineEditors, out targetsRequireUpdate);
-            layoutController = new InspectorLayoutController(target.GetType().FullName,
-                layoutData.ToArray());
-            callbackManager = new CallbackManager(firstLevelProps);
+            RebuildLayoutData();
             OnInitialize();
         }
 
         protected void CleanupMarkedUpEditor()
         {
             OnCleanup();
-            foreach (var item in inlineEditors)
+            if (inlineEditors != null)
             {
-                DestroyImmediate(item.Value.editor);
+                foreach (var item in inlineEditors)
+                {
+                    if (item.Value != null && item.Value.editor != null)
+                    {
+                        DestroyImmediate(item.Value.editor);
+                    }
+                }
             }
+        }
+
+        private void RebuildLayoutData()
+        {
+            if (inlineEditors != null)
+            {
+                foreach (var item in inlineEditors)
+                {
+                    if (item.Value != null && item.Value.editor != null)
+                    {
+                        DestroyImmediate(item.Value.editor);
+                    }
+                }
+            }
+
+            EditorLayoutDataBuilder.BuildLayoutData(serializedObject, out allProps, 
+                out firstLevelProps, out layoutData, out inlineEditors, out targetsRequireUpdate, out managedReferenceTypesCache);
+            layoutController = new InspectorLayoutController(target.GetType().FullName,
+                layoutData.ToArray());
+            callbackManager = new CallbackManager(firstLevelProps);
+        }
+
+        private bool CheckManagedReferenceTypesChanged()
+        {
+            if (managedReferenceTypesCache == null)
+                return false;
+            foreach (var kvp in managedReferenceTypesCache)
+            {
+                var prop = serializedObject.FindProperty(kvp.Key);
+                if (prop == null)
+                    return true;
+                if (prop.managedReferenceFullTypename != kvp.Value)
+                    return true;
+            }
+            return false;
         }
 
         protected bool DrawMarkedUpInspector()
         {
-            EditorGUI.BeginChangeCheck();
-            serializedObject.UpdateIfRequiredOrScript();
-
-            CreateInlineEditors();
-            UpdateTargets();
-            int topLevelIndex = 1;
-            layoutController.Begin();
-
-            if (!MarkupGUI.IsInsideInlineEditor)
+            var previousIsInside = MarkupGUI.IsInsideMarkedUpEditor;
+            MarkupGUI.IsInsideMarkedUpEditor = true;
+            try
             {
-                using (new EditorGUI.DisabledScope(true))
+                serializedObject.UpdateIfRequiredOrScript();
+                if (CheckManagedReferenceTypesChanged())
                 {
-                    EditorGUILayout.PropertyField(allProps[0]);
+                    RebuildLayoutData();
                 }
-            }
 
-            for (int i = 1; i < allProps.Length; i++)
-            {
-                layoutController.BeforeProperty(i);
-                if (layoutController.ScopeVisible)
+                EditorGUI.BeginChangeCheck();
+
+                CreateInlineEditors();
+                UpdateTargets();
+                int topLevelIndex = 1;
+                layoutController.Begin();
+
+                if (!MarkupGUI.IsInsideInlineEditor)
                 {
-                    using (new EditorGUI.DisabledScope(!layoutController.ScopeEnabled))
+                    using (new EditorGUI.DisabledScope(true))
                     {
-                        DrawProperty(i, topLevelIndex);
+                        EditorGUILayout.PropertyField(allProps[0]);
                     }
                 }
 
-                if (layoutController.IsTopLevel(i))
-                    topLevelIndex += 1;
-            }
-            layoutController.Finish();
+                for (int i = 1; i < allProps.Length; i++)
+                {
+                    layoutController.BeforeProperty(i);
+                    if (layoutController.ScopeVisible)
+                    {
+                        using (new EditorGUI.DisabledScope(!layoutController.ScopeEnabled))
+                        {
+                            DrawProperty(i, topLevelIndex);
+                        }
+                    }
 
-            serializedObject.ApplyModifiedProperties();
-            return EditorGUI.EndChangeCheck();
+                    if (layoutController.IsTopLevel(i))
+                        topLevelIndex += 1;
+                }
+                layoutController.Finish();
+
+                serializedObject.ApplyModifiedProperties();
+                return EditorGUI.EndChangeCheck();
+            }
+            finally
+            {
+                MarkupGUI.IsInsideMarkedUpEditor = previousIsInside;
+            }
         }
 
         private void DrawProperty(int index, int topLevelIndex)
