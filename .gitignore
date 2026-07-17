@@ -1,0 +1,16 @@
+# Ignore all files and folders in the root directory by default
+/*
+
+# Whitelist specific folders (un-ignores the root folder and tracks its contents)
+!/Editor/
+!/Runtime/
+!/Samples~/
+
+# Whitelist specific files in the root
+!/Editor.meta
+!/Runtime.meta
+!/package.json
+!/package.json.meta
+
+# Include the .gitignore file itself so your rules are tracked
+!/.gitignore
