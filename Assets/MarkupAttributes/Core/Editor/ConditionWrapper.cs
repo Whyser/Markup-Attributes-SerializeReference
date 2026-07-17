@@ -35,25 +35,31 @@ namespace MarkupAttributes.Editor
                 object targetObject = targetObjectWrapper.Target;
                 Type type = targetObject.GetType();
 
-                FieldInfo fieldInfo = type.GetField(descriptor.memberName, MarkupEditorUtils.DefaultBindingFlags);
-                if (fieldInfo != null)
+                Type currentType = type;
+                while (currentType != null)
                 {
-                    if (IsConditionValid(fieldInfo.FieldType, descriptor))
-                        return new ConditionWrapper(descriptor.isInverted, targetObjectWrapper, fieldInfo, null, null, descriptor.value, descriptor.hasValue);
-                }
+                    FieldInfo fieldInfo = currentType.GetField(descriptor.memberName, MarkupEditorUtils.DefaultBindingFlags);
+                    if (fieldInfo != null)
+                    {
+                        if (IsConditionValid(fieldInfo.FieldType, descriptor))
+                            return new ConditionWrapper(descriptor.isInverted, targetObjectWrapper, fieldInfo, null, null, descriptor.value, descriptor.hasValue);
+                    }
 
-                PropertyInfo propertyInfo = type.GetProperty(descriptor.memberName, MarkupEditorUtils.DefaultBindingFlags);
-                if (propertyInfo != null)
-                {
-                    if (IsConditionValid(propertyInfo.PropertyType, descriptor))
-                        return new ConditionWrapper(descriptor.isInverted, targetObjectWrapper, null, propertyInfo, null, descriptor.value, descriptor.hasValue);
-                }
+                    PropertyInfo propertyInfo = currentType.GetProperty(descriptor.memberName, MarkupEditorUtils.DefaultBindingFlags);
+                    if (propertyInfo != null)
+                    {
+                        if (IsConditionValid(propertyInfo.PropertyType, descriptor))
+                            return new ConditionWrapper(descriptor.isInverted, targetObjectWrapper, null, propertyInfo, null, descriptor.value, descriptor.hasValue);
+                    }
 
-                MethodInfo methodInfo = type.GetMethod(descriptor.memberName, MarkupEditorUtils.DefaultBindingFlags);
-                if (methodInfo != null && methodInfo.GetParameters().Length == 0)
-                {
-                    if (IsConditionValid(methodInfo.ReturnType, descriptor))
-                        return new ConditionWrapper(descriptor.isInverted, targetObjectWrapper, null, null, methodInfo, descriptor.value, descriptor.hasValue);
+                    MethodInfo methodInfo = currentType.GetMethod(descriptor.memberName, MarkupEditorUtils.DefaultBindingFlags);
+                    if (methodInfo != null && methodInfo.GetParameters().Length == 0)
+                    {
+                        if (IsConditionValid(methodInfo.ReturnType, descriptor))
+                            return new ConditionWrapper(descriptor.isInverted, targetObjectWrapper, null, null, methodInfo, descriptor.value, descriptor.hasValue);
+                    }
+
+                    currentType = currentType.BaseType;
                 }
             }
             return null;
