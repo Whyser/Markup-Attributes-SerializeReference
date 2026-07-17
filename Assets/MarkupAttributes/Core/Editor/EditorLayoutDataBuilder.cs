@@ -161,7 +161,25 @@ namespace MarkupAttributes.Editor
                             if (markedUp == null)
                                 markedUp = elementType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
 
-                            if (markedUp != null)
+                            bool anyElementMarkedUp = false;
+                            if (markedUp == null)
+                            {
+                                int currentSize = sibling.arraySize;
+                                for (int j = 0; j < currentSize; j++)
+                                {
+                                    var elem = sibling.GetArrayElementAtIndex(j);
+                                    if (elem.propertyType == SerializedPropertyType.ManagedReference && elem.managedReferenceValue != null)
+                                    {
+                                        if (elem.managedReferenceValue.GetType().GetCustomAttribute<MarkedUpTypeAttribute>(true) != null)
+                                        {
+                                            anyElementMarkedUp = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (markedUp != null || anyElementMarkedUp)
                             {
                                 data.includeChildren = false;
                                 
