@@ -69,8 +69,8 @@ namespace MarkupAttributes.Editor
             for (int i = 0; i < props.Length; i++)
             {
                 var materialProperty = props[i];
-                if ((materialProperty.type == MaterialProperty.PropType.Float
-                                    || materialProperty.type == MaterialProperty.PropType.Range)
+                if ((materialProperty.propertyType == UnityEngine.Rendering.ShaderPropertyType.Float
+                                    || materialProperty.propertyType == UnityEngine.Rendering.ShaderPropertyType.Range)
                                     && materialProperty.name == descriptor.memberName)
                 {
                     return new ConditionWrapper(descriptor.isInverted, i, materialProperties,

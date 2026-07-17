@@ -34,7 +34,7 @@ namespace MarkupAttributes.Editor
 
         public static TogglableValueWrapper Create(int index, MaterialPropertiesWrapper materialProperties)
         {
-            if (materialProperties.value[index].type == MaterialProperty.PropType.Float)
+            if (materialProperties.value[index].propertyType == UnityEngine.Rendering.ShaderPropertyType.Float)
                 return new TogglableValueWrapper(index, materialProperties);
             return null;
         }
@@ -43,7 +43,7 @@ namespace MarkupAttributes.Editor
             Material material, string keyword)
         {
             if (material != null && keyword != null &&
-                materialProperties.value[index].type == MaterialProperty.PropType.Float)
+                materialProperties.value[index].propertyType == UnityEngine.Rendering.ShaderPropertyType.Float)
             {
                 return new TogglableValueWrapper(index, materialProperties, material, keyword);
             }
