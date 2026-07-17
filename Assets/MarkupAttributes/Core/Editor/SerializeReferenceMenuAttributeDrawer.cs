@@ -40,7 +40,10 @@ namespace MarkupAttributes.Editor
                 if (valueType.GetCustomAttribute<MarkedUpTypeAttribute>(true) != null ||
                     fieldInfo.GetCustomAttribute<MarkedUpTypeAttribute>(true) != null)
                 {
-                    includeChildren = false;
+                    if (MarkedUpEditor.ActiveEditor != null && MarkedUpEditor.ActiveEditor.IsPropertyFlattened(property))
+                    {
+                        includeChildren = false;
+                    }
                 }
             }
             return includeChildren;
