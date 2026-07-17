@@ -158,28 +158,7 @@ namespace MarkupAttributes.Editor
 
                         if (elementType != null)
                         {
-                            if (markedUp == null)
-                                markedUp = elementType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
-
-                            bool anyElementMarkedUp = false;
-                            if (markedUp == null)
-                            {
-                                int currentSize = sibling.arraySize;
-                                for (int j = 0; j < currentSize; j++)
-                                {
-                                    var elem = sibling.GetArrayElementAtIndex(j);
-                                    if (elem.propertyType == SerializedPropertyType.ManagedReference && elem.managedReferenceValue != null)
-                                    {
-                                        if (elem.managedReferenceValue.GetType().GetCustomAttribute<MarkedUpTypeAttribute>(true) != null)
-                                        {
-                                            anyElementMarkedUp = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (markedUp != null || anyElementMarkedUp)
+                            if (markedUp != null)
                             {
                                 data.includeChildren = false;
                                 
@@ -229,10 +208,13 @@ namespace MarkupAttributes.Editor
                                         if (children != null && children.Length > 0)
                                         {
                                             elementData.includeChildren = false;
-                                            elementData.alwaysHide |= !elementMarkedUp.ShowControl;
+                                            bool showControl = elementMarkedUp.ShowControl;
+                                            bool indentChildren = elementMarkedUp.IndentChildren;
+                                            
+                                            elementData.alwaysHide |= !showControl;
                                             var subScopeGroup = InspectorLayoutGroup.CreateScopeGroup(
                                                 "./" + elementProp.name, elementProp, elementTargetType.FullName, 
-                                                elementMarkedUp.ShowControl, elementMarkedUp.IndentChildren);
+                                                showControl, indentChildren);
                                             
                                             var elementWrapper = new TargetObjectWrapper(elementTarget, elementProp);
                                             scopesToClose += GetLayoutDataForSiblings(
@@ -269,10 +251,13 @@ namespace MarkupAttributes.Editor
                             if (children != null && children.Length > 0)
                             {
                                 data.includeChildren = false;
-                                data.alwaysHide |= !markedUp.ShowControl;
+                                bool showControl = markedUp.ShowControl;
+                                bool indentChildren = markedUp.IndentChildren;
+
+                                data.alwaysHide |= !showControl;
                                 var subScopeGroup = InspectorLayoutGroup.CreateScopeGroup(
                                     "./" + sibling.name, sibling, subTargetType.FullName, 
-                                    markedUp.ShowControl, markedUp.IndentChildren);
+                                    showControl, indentChildren);
                                 scopesToClose += GetLayoutDataForSiblings(
                                     subScopeGroup, children, subTargetType, subTargetWrapper, 
                                     allProps, layoutData, inlineEditors, targetObjectWrappers,

@@ -35,22 +35,16 @@ namespace MarkupAttributes.Editor
 
         private bool GetIncludeChildren(SerializedProperty property)
         {
-            bool includeChildren = true;
             if (MarkupGUI.IsInsideMarkedUpEditor && 
                 property.propertyType == SerializedPropertyType.ManagedReference && 
                 property.managedReferenceValue != null)
             {
-                var valueType = property.managedReferenceValue.GetType();
-                if (valueType.GetCustomAttribute<MarkedUpTypeAttribute>(true) != null ||
-                    fieldInfo.GetCustomAttribute<MarkedUpTypeAttribute>(true) != null)
+                if (MarkedUpEditor.ActiveEditor != null && MarkedUpEditor.ActiveEditor.IsPropertyFlattened(property))
                 {
-                    if (MarkedUpEditor.ActiveEditor != null && MarkedUpEditor.ActiveEditor.IsPropertyFlattened(property))
-                    {
-                        includeChildren = false;
-                    }
+                    return false;
                 }
             }
-            return includeChildren;
+            return true;
         }
     }
 }
