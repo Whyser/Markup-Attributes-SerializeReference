@@ -16,7 +16,8 @@ namespace MarkupAttributes.Editor
         private CallbackManager callbackManager;
         private Dictionary<SerializedProperty, InlineEditorData> inlineEditors;
         private List<TargetObjectWrapper> targetsRequireUpdate;
-        private Dictionary<string, string> managedReferenceTypesCache;
+        private Dictionary<string, object> managedReferenceTypesCache;
+        private Dictionary<string, int> arraySizesCache;
 
         public static MarkedUpEditor ActiveEditor { get; private set; }
 
@@ -93,24 +94,37 @@ namespace MarkupAttributes.Editor
             }
 
             EditorLayoutDataBuilder.BuildLayoutData(serializedObject, out allProps, 
-                out firstLevelProps, out layoutData, out inlineEditors, out targetsRequireUpdate, out managedReferenceTypesCache);
+                out firstLevelProps, out layoutData, out inlineEditors, out targetsRequireUpdate, out managedReferenceTypesCache, out arraySizesCache);
             layoutController = new InspectorLayoutController(target.GetType().FullName,
                 layoutData.ToArray());
             callbackManager = new CallbackManager(firstLevelProps);
         }
 
-        private bool CheckManagedReferenceTypesChanged()
+        private bool CheckLayoutStructureChanged()
         {
-            if (managedReferenceTypesCache == null)
+            if (managedReferenceTypesCache == null || arraySizesCache == null)
                 return false;
+
+            // Check managed references
             foreach (var kvp in managedReferenceTypesCache)
             {
                 var prop = serializedObject.FindProperty(kvp.Key);
                 if (prop == null)
                     return true;
-                if (prop.managedReferenceFullTypename != kvp.Value)
+                if (prop.managedReferenceValue != kvp.Value)
                     return true;
             }
+
+            // Check array sizes
+            foreach (var kvp in arraySizesCache)
+            {
+                var prop = serializedObject.FindProperty(kvp.Key);
+                if (prop == null)
+                    return true;
+                if (prop.arraySize != kvp.Value)
+                    return true;
+            }
+
             return false;
         }
 
@@ -123,7 +137,7 @@ namespace MarkupAttributes.Editor
             try
             {
                 serializedObject.UpdateIfRequiredOrScript();
-                if (CheckManagedReferenceTypesChanged())
+                if (CheckLayoutStructureChanged())
                 {
                     RebuildLayoutData();
                 }
