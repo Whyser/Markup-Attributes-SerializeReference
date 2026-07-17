@@ -82,20 +82,25 @@ namespace MarkupAttributes.Editor
                     {
                         var group = CreateGroupFromAttribute(ref isPropertyHidden, 
                             groupAttribute, sibling, targetObjectWrapper);
-                        groups.Add(group);
+                        if (group != null)
+                            groups.Add(group);
                     }
 
                     // conditionals 
                     var hideConditions = new List<ConditionWrapper>();
                     foreach (var attribute in fieldInfo.GetCustomAttributes<HideIfAttribute>())
                     {
-                        hideConditions.Add(ConditionWrapper.Create(attribute.Condition, targetObjectWrapper));
+                        var condition = ConditionWrapper.Create(attribute.Condition, targetObjectWrapper);
+                        if (condition != null)
+                            hideConditions.Add(condition);
                     }
 
                     var disableConditions = new List<ConditionWrapper>();
                     foreach (var attribute in fieldInfo.GetCustomAttributes<DisableIfAttribute>())
                     {
-                        disableConditions.Add(ConditionWrapper.Create(attribute.Condition, targetObjectWrapper));
+                        var condition = ConditionWrapper.Create(attribute.Condition, targetObjectWrapper);
+                        if (condition != null)
+                            disableConditions.Add(condition);
                     }
 
                     var end = fieldInfo.GetCustomAttribute<EndGroupAttribute>();
