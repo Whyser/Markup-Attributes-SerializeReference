@@ -23,6 +23,7 @@ namespace MarkupAttributes.Editor
         }
 
         public static bool IsInsideInlineEditor { get; private set; } = false;
+        public static bool IsInsideMarkedUpEditor { get; internal set; } = false;
         public class InlineEditorScope : IDisposable
         {
             private readonly bool cachedIsInsideInlineEditor;
