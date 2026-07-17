@@ -204,7 +204,22 @@ namespace MarkupAttributes.Editor
                         }
                         else
                         {
-                            EditorGUILayout.PropertyField(prop, layoutController.IncludeChildren(index));
+                            bool includeChildren = layoutController.IncludeChildren(index);
+                            EditorGUILayout.PropertyField(prop, includeChildren);
+                            
+                            if (!includeChildren && prop.isArray && prop.propertyType != SerializedPropertyType.String)
+                            {
+                                if (prop.isExpanded)
+                                {
+                                    EditorGUI.indentLevel++;
+                                    var sizeProp = prop.FindPropertyRelative("Array.size");
+                                    if (sizeProp != null)
+                                    {
+                                        EditorGUILayout.PropertyField(sizeProp);
+                                    }
+                                    EditorGUI.indentLevel--;
+                                }
+                            }
                         }
                     }
                 }

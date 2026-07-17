@@ -163,6 +163,7 @@ namespace MarkupAttributes.Editor
                                 data.includeChildren = false;
                                 
                                 int size = sibling.arraySize;
+                                int elementScopesToClose = 0;
                                 for (int indexInArray = 0; indexInArray < size; indexInArray++)
                                 {
                                     var elementProp = sibling.GetArrayElementAtIndex(indexInArray);
@@ -185,13 +186,15 @@ namespace MarkupAttributes.Editor
                                     var elementData = new PropertyLayoutData(new List<InspectorLayoutGroup>(), new List<ConditionWrapper>(), new List<ConditionWrapper>(), null, fieldInfo);
                                     elementData.isTopLevel = false;
                                     elementData.includeChildren = true;
+                                    elementData.numberOfScopesToClose = elementScopesToClose;
+                                    elementScopesToClose = 0;
 
                                     allProps.Add(elementProp);
                                     layoutData.Add(elementData);
 
                                     if (elementProp.propertyType == SerializedPropertyType.ManagedReference)
                                     {
-                                        managedReferenceTypesCache[elementProp.propertyPath] = elementProp.managedReferenceValue;
+                                        managedReferenceTypesCache[elementProp.propertyPath] = elementProp.managedReferenceFullTypename;
                                     }
 
                                     var elementMarkedUp = elementType.GetCustomAttribute<MarkedUpTypeAttribute>(true);
@@ -217,14 +220,15 @@ namespace MarkupAttributes.Editor
                                                 showControl, indentChildren);
                                             
                                             var elementWrapper = new TargetObjectWrapper(elementTarget, elementProp);
-                                            scopesToClose += GetLayoutDataForSiblings(
+                                            elementScopesToClose += GetLayoutDataForSiblings(
                                                 subScopeGroup, children, elementTargetType, elementWrapper, 
                                                 allProps, layoutData, inlineEditors, targetObjectWrappers,
                                                 managedReferenceTypesCache, arraySizesCache);
-                                            scopesToClose += 1;
+                                            elementScopesToClose += 1;
                                         }
                                     }
                                 }
+                                scopesToClose += elementScopesToClose;
                             }
                         }
                     }
