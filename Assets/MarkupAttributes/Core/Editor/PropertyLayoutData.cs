@@ -38,7 +38,7 @@ namespace MarkupAttributes.Editor
 
         public PropertyLayoutData(List<InspectorLayoutGroup> groups, 
             List<ConditionWrapper> hideConditions, List<ConditionWrapper> disableConditions,
-            EndGroupAttribute end, System.Reflection.FieldInfo fieldInfo)
+            EndGroupAttribute end, System.Reflection.FieldInfo fieldInfo = null)
         {
             groups.Sort((g0, g1) => g0.Order().CompareTo(g1.Order()));
 
