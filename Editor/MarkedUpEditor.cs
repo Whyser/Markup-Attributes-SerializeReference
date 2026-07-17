@@ -18,6 +18,24 @@ namespace MarkupAttributes.Editor
         private List<TargetObjectWrapper> targetsRequireUpdate;
         private Dictionary<string, string> managedReferenceTypesCache;
 
+        public static MarkedUpEditor ActiveEditor { get; private set; }
+
+        internal bool IsPropertyFlattened(SerializedProperty property)
+        {
+            if (allProps == null)
+                return false;
+            string path = property.propertyPath;
+            for (int i = 0; i < allProps.Length; i++)
+            {
+                if (allProps[i].propertyPath == path)
+                {
+                    var data = layoutData[i];
+                    return data != null && !data.includeChildren;
+                }
+            }
+            return false;
+        }
+
         protected virtual void OnInitialize() { }
         protected virtual void OnCleanup() { }
         protected void AddCallback(SerializedProperty property, CallbackEvent type, Action<SerializedProperty> callback)
@@ -100,6 +118,8 @@ namespace MarkupAttributes.Editor
         {
             var previousIsInside = MarkupGUI.IsInsideMarkedUpEditor;
             MarkupGUI.IsInsideMarkedUpEditor = true;
+            var previousActive = ActiveEditor;
+            ActiveEditor = this;
             try
             {
                 serializedObject.UpdateIfRequiredOrScript();
@@ -145,6 +165,7 @@ namespace MarkupAttributes.Editor
             finally
             {
                 MarkupGUI.IsInsideMarkedUpEditor = previousIsInside;
+                ActiveEditor = previousActive;
             }
         }
 
