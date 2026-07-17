@@ -90,10 +90,10 @@ namespace MarkupAttributes.Editor
 
         private void DrawProperty(MaterialEditor editor, MaterialProperty prop)
         {
-            if (prop.flags.HasFlag(MaterialProperty.PropFlags.HideInInspector))
+            if (prop.propertyFlags.HasFlag(UnityEngine.Rendering.ShaderPropertyFlags.HideInInspector))
                 return;
             bool hierarchyMode = EditorGUIUtility.hierarchyMode;
-            if (prop.type == MaterialProperty.PropType.Range)
+            if (prop.propertyType == UnityEngine.Rendering.ShaderPropertyType.Range)
                 EditorGUIUtility.hierarchyMode = true;
             editor.ShaderProperty(prop, MakeLabel(prop));
             EditorGUIUtility.hierarchyMode = hierarchyMode;
